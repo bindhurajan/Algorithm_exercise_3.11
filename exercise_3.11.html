@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+        <title>D3 Page Template</title>
+        <script type="text/javascript" src="d3.v3.js"></script>
+    </head>
+    <body>
+        <h1> Algorithm Exercise 3.11        </h1>
+        <h3 style="color:red"> <span >red</span>: infected computers </h3>
+        <h3 style="color:green"> <span >green</span>: safe or unchecked computers</h3>
+        <h3 style="color:orange"> <span >orange</span>: the first and last infected computers</h3>
+        <h3>bold edge shows how virus spread</h3>
+        <script type="text/javascript">
+
+        	var dataset= [
+            	[1,2,4],[2,4,8],[3,4,8],[1,4,12]
+            ];
+
+            var graph=new Array();     //adjacent list
+            
+            var q=new Array(),          // a queue used for storage infected computers
+                isInfected=false,
+                tarNode=-1;             //target computer's position in q
+                qState=[];              //check if node has been added into q before
+
+
+            initGraph();
+            initQState();
+            check(1,2,3,10);            
+
+
+            //BFS
+            function check(n1,t1,n2,t2){ 
+                if(n1==n2) return isInfected=true;
+
+                var head=0;                                                      //q head
+                for(var i = 0; i < graph.length && graph[i].time <= t2 ; i++)                    
+                    if( graph[i].node == n1 && graph[i].time >= t1 ){
+                            q.push(i);                                          //find first infected node, and push into queue
+                            qState[i] = 1;                                        //i has been pushed into q, so change state to 1
+                        }                 
+
+                    while( head != q.length ){                                         //while queue is not null
+                        for(var j = 0; j < graph[ q[head] ].connected.length; j++){
+
+                            if( graph[ graph[ q[head] ].connected[j]].time <= t2 ){     //push the node into queue only if node.time <= t2
+                                
+                                if( qState[graph[ q[head] ].connected[j] ] == 0 ){      //never went into queue before
+
+                                    q.push( graph[ q[head] ].connected[j] );           //all the node connected to queue head node pushed into queue\
+                                    qState[ graph[ q[head] ].connected[j] ] = 1;        // change the state, same node cannot push into queue twice
+
+                                    if( graph[ graph[ q[head] ].connected[j] ].node == n2 ){   //find the target node  return true
+                                        tarNode=q.length-1;
+                                        isInfected=true;
+                                    }
+                                }
+                            }
+                        }
+                        head++;                                                    
+                    }
+                    return isInfected;                                          //queue becomes empty still, the target is not infected
+            }
+
+        
+
+            function initQState(){
+                for(var i=0; i < graph.length; i++)
+                    qState[i]=0;
+            }
+
+            function initGraph(){                                                       //create an adjacent list
+                var nodeNumber1=-1,nodeNumber2=-1;
+
+                for(var i=0;i<dataset.length;i++){
+                    nodeNumber1=findNodeNumber(dataset[i][0],dataset[i][2]);            //check if the two new nodes are already existed
+                    nodeNumber2=findNodeNumber(dataset[i][1],dataset[i][2]);
+
+                    graph[nodeNumber1].connected.push(nodeNumber2);                     //create an edge between the two nodes
+                    graph[nodeNumber2].connected.push(nodeNumber1);
+
+                }
+            }
+
+            function findNodeNumber(n,t){                               //check if the node is already existed, if yes, return node number, if not create new one
+                for(var i=0;i<graph.length;i++){
+                    if(graph[i].node==n && graph[i].time==t)
+                        return i;
+                }
+                graph.push({"node":n,"time":t,"connected":[]});
+                checkFirstTime(n,t);                                //check if the node showed before, if yes connect the previous one to this one
+                return graph.length-1;
+            }
+
+            function checkFirstTime(n,t){
+                for(var i=graph.length-1;i>=0;i--){
+                    if(graph[i].node==n && graph[i].time<t){
+                        graph[i].connected.push(graph.length-1);
+                        graph[graph.length-1].connected.push(i);
+                    }
+
+                }
+            }
+            //console.log(graph);
+
+                  
+// code used for graph
+//********************************************************************************************************
+            var w=1300,
+                h=600;
+
+            var dataset1={
+                nodes:[],
+                edges:[]
+            };
+
+            for(var i=0;i<graph.length;i++){                        //create data structure for force layout
+                dataset1.nodes.push({ "node": graph[i].node , "time": graph[i].time });
+                for(var j=0;j<graph[i].connected.length;j++){
+                    dataset1.edges.push({"source": i, "target": graph[i].connected[j] });
+                }
+            }
+
+            var force = d3.layout.force()
+                                 .nodes(dataset1.nodes)
+                                 .links(dataset1.edges)
+                                 .size([w, h])
+                                 .linkDistance([150])
+                                 .charge([-3000])
+                                 .start();
+
+            var svg = d3.select("body")
+                        .append("svg")
+                        .attr("width",w)
+                        .attr("height",h);
+            
+
+            var edges = svg.selectAll("line")
+                .data(dataset1.edges)
+                .enter()
+                .append("line")
+                .style("stroke",function(d){
+                    for(var i=0;i<q.length;i++){
+                        if(d.source.node == graph[q[i]].node && d.source.time == graph[q[i]].time)
+                            for(var j=0;j<q.length;j++){
+                                if(d.target.node == graph[q[j]].node && d.target.time == graph[q[j]].time)
+                                    return "black";
+                            }                            
+                    }
+                    return "#ccc";
+                })
+                .style("stroke-width",function(d){
+                    for(var i=0;i<q.length;i++){
+                        if(d.source.node == graph[q[i]].node && d.source.time == graph[q[i]].time)
+                            for(var j=0;j<q.length;j++){
+                                if(d.target.node == graph[q[j]].node && d.target.time == graph[q[j]].time)
+                                    return 5;
+                            }                            
+                    }
+                    return 3;
+                });
+
+            
+            var nodes = svg.selectAll("circle")
+                .data(dataset1.nodes)
+                .enter()
+                .append("circle")
+                .attr("r", 30)
+                .style("fill", function(d,i){
+                    if(i==q[0]) return "orange";
+                    if(i==q[tarNode])
+                        return "orange";
+                    for(j=1;j<q.length;j++){
+                        if(i==q[j]) return "red";
+                    }
+                    return "green";
+                })
+                .call(force.drag);
+
+            var text = svg.selectAll("text")
+                            .data(dataset1.nodes)
+                            .enter()
+                            .append("text");
+
+
+            force.on("tick", function() {
+
+                edges.attr("x1", function(d) { return d.source.x; })
+                     .attr("y1", function(d) { return d.source.y; })
+                     .attr("x2", function(d) { return d.target.x; })
+                     .attr("y2", function(d) { return d.target.y; });
+            
+                nodes.attr("cx", function(d) { return d.x; })
+                     .attr("cy", function(d) { return d.y; });
+
+                text.text(function(d){ return "C" + d.node + " time: "+ d.time; })
+                    .attr("x", function(d){ return d.x-25; })
+                    .attr("y", function(d){ return d.y; })
+    
+            });
+
+
+        </script>
+    </body>
+</html>
